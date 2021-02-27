@@ -5,7 +5,7 @@ interface
 uses GR32;
 
 function VignetteBrightness(X,Y: Single): Single;
-procedure Vignette(var ASource: TBitmap32);
+procedure Vignette(ASource: TBitmap32);
 
 implementation
 
@@ -33,7 +33,7 @@ begin
     Result := 0.0; // it is dark outside the lOutRad (outer radius)
 end;
 
-procedure Vignette(var ASource: TBitmap32);
+procedure Vignette(ASource: TBitmap32);
   function ClampByte(Value: Integer): Byte;
   begin
     if Value > 255 then
