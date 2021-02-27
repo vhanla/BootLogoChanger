@@ -3,9 +3,9 @@ object Win8BootLogo: TWin8BootLogo
   Top = 0
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
-  Caption = '8oot Logo Changer v1.2 by vhanla | http://codigobit.net'
-  ClientHeight = 404
-  ClientWidth = 611
+  Caption = 'Boot Logo Changer v1.5 by vhanla | https://apps.codigobit.info'
+  ClientHeight = 510
+  ClientWidth = 736
   Color = clBtnFace
   DragMode = dmAutomatic
   Font.Charset = DEFAULT_CHARSET
@@ -28,10 +28,10 @@ object Win8BootLogo: TWin8BootLogo
   object Label5: TLabel
     Left = 148
     Top = 347
-    Width = 95
+    Width = 129
     Height = 13
     Cursor = crHandPoint
-    Caption = 'http://codigobit.net'
+    Caption = 'https://apps.codigobit.info'
     OnClick = Label5Click
   end
   object Label6: TLabel
@@ -40,6 +40,15 @@ object Win8BootLogo: TWin8BootLogo
     Width = 134
     Height = 13
     Caption = 'For more free software visit'
+  end
+  object Splitter1: TSplitter
+    Left = 0
+    Top = 392
+    Width = 736
+    Height = 5
+    Cursor = crVSplit
+    Align = alBottom
+    ExplicitTop = 394
   end
   object ImgView321: TImgView32
     Left = 9
@@ -101,7 +110,7 @@ object Win8BootLogo: TWin8BootLogo
     OnClick = Button1Click
   end
   object pages: TPageControl
-    Left = 358
+    Left = 478
     Top = 8
     Width = 239
     Height = 383
@@ -215,10 +224,6 @@ object Win8BootLogo: TWin8BootLogo
     object TabSheet2: TTabSheet
       Caption = 'Testmode'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label7: TLabel
         Left = 3
         Top = 3
@@ -324,6 +329,93 @@ object Win8BootLogo: TWin8BootLogo
       end
     end
   end
+  object PageControl1: TPageControl
+    Left = 0
+    Top = 397
+    Width = 736
+    Height = 113
+    ActivePage = TabSheet3
+    Align = alBottom
+    TabOrder = 6
+    object TabSheet3: TTabSheet
+      Caption = 'System Status'
+      object lblOS: TLabel
+        Left = 18
+        Top = 16
+        Width = 90
+        Height = 13
+        Caption = 'Operating System:'
+      end
+      object lblBIOS: TLabel
+        Left = 18
+        Top = 32
+        Width = 57
+        Height = 13
+        Caption = 'BIOS mode:'
+      end
+      object lblTest: TLabel
+        Left = 18
+        Top = 48
+        Width = 59
+        Height = 13
+        Caption = 'TestSigning:'
+      end
+      object lblCurShell: TLabel
+        Left = 170
+        Top = 32
+        Width = 98
+        Height = 13
+        Caption = 'Current Shell32.mui:'
+      end
+      object lblBkpShell: TLabel
+        Left = 170
+        Top = 48
+        Width = 95
+        Height = 13
+        Caption = 'Backup Shell32.mui:'
+      end
+      object lblBootres: TLabel
+        Left = 18
+        Top = 64
+        Width = 95
+        Height = 13
+        Caption = 'Current Bootres.dll:'
+      end
+      object lblBkpBootres: TLabel
+        Left = 354
+        Top = 64
+        Width = 92
+        Height = 13
+        Caption = 'Backup Bootres.dll:'
+      end
+    end
+    object TabSheet4: TTabSheet
+      Caption = 'Log Output'
+      ImageIndex = 1
+      object mmLog: TMemo
+        Left = 0
+        Top = 0
+        Width = 728
+        Height = 85
+        Align = alClient
+        Lines.Strings = (
+          'Boot Logo Changer log:'
+          ''
+          '')
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 0
+      end
+    end
+  end
+  object cbVignette: TCheckBox
+    Left = 264
+    Top = 369
+    Width = 97
+    Height = 17
+    Caption = 'Vignette Effect'
+    TabOrder = 7
+  end
   object OpenPictureDialog1: TOpenPictureDialog
     Filter = 
       'All (*.gif;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.ico;*.emf;*.w' +
@@ -340,6 +432,7 @@ object Win8BootLogo: TWin8BootLogo
     DragTypes = [dtMove]
     OnDrop = DropComboTarget1Drop
     Target = ImgView321
+    WinTarget = 0
     Left = 264
     Top = 208
   end

@@ -14,9 +14,76 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, GR32_Image, Vcl.ExtDlgs, ShellApi, AccCtrl, AclApi,
   DragDrop, DragDropContext, DragDropHandler, DropTarget, DragDropFile,
   DropHandler, DropComboTarget, GR32_Resamplers, gr32, GR32_Layers, gr32_polygons, shlobj,
-  Vcl.Buttons, imagehlp, Vcl.ExtCtrls, Vcl.ComCtrls, System.Types;
+  Vcl.Buttons, imagehlp, Vcl.ExtCtrls, Vcl.ComCtrls, System.Types, JclSysInfo;
 
+const
+  SystemCodeIntegrityInformation = $67;
+  CODEINTEGRITY_OPTION_TESTSIGN = 2;
+  {$EXTERNALSYM WIN_CERT_REVISION_1_0}
+  WIN_CERT_REVISION_1_0 = $0100;
+  CERT_SECTION_TYPE_ANY = $FF; // any certificate type
+  CERT_NAME_SIMPLE_DISPLAY_TYPE = 4;
+  PKCS_7_ASN_ENCODING = $00010000;
+  X509_ASN_ENCODING = $00000001;
+
+  WINTRUST_ACTION_GENERIC_VERIFY_V2: TGUID = '{00AAC56B-CD44-11d0-8CC2-00C04FC295EE}';
+  WTD_CHOICE_FILE = 1;
+  WTD_REVOKE_NONE = 0;
+  WTD_UI_NONE = 2;
+  
 type
+  TSystemInformationClass = (
+    SystemBasicInformation = 0,
+    SystemPerformanceInformation = 2,
+    SystemTimeOfDayInformation = 3,
+    SystemProcessInformation = 5,
+    SystemProcessorPerformanceInformation = 8,
+    SystemInterruptInformation = 23,
+    SystemExceptionInformation = 33,
+    SystemRegistryQuotaInformation = 37,
+    SystemLookasideInformation = 45
+  );
+  TSystemCodeIntegrityInformation = record
+    Length: ULONG;
+    CodeIntegrityOptions: ULONG;
+  end;
+
+  PCCERT_CONTEXT = type Pointer;
+  HCRYPTPROV_LEGACY = type Pointer;
+  PFN_CRYPT_GET_SIGNER_CERTIFICATE = type Pointer;
+
+  CRYPT_VERIFY_MESSAGE_PARA = record
+    cbSize: DWORD;
+    dwMsgAndCertEncodingType: DWORD;
+    hCryptProv: HCRYPTPROV_LEGACY;
+    pfnGetSignerCertificate: PFN_CRYPT_GET_SIGNER_CERTIFICATE;
+    pvGetArg: Pointer;
+  end;
+
+  PWinTrustFileInfo = ^TWinTrustFileInfo;
+  TWinTrustFileInfo = record
+    cbStruct: DWORD;          // = SizeOf(WINTRUST_FILE_INFO)
+    pcwszFilePath: PWideChar; // required, file name to be verified
+    hFile: THandle;           // optional, open handle to pcwszFilePath
+    pgKnownSubject: PGUID;    // optional, fill if the subject type is known
+  end;
+
+  PWinTrustData = ^TWinTrustData;
+  TWinTrustData = record
+    cbStruct: DWORD;
+    pPolicyCallbackData: Pointer;
+    pSIPClientData: Pointer;
+    dwUIChoice: DWORD;
+    fdwRevocationChecks: DWORD;
+    dwUnionChoice: DWORD;
+    pFile: PWinTrustFileInfo;
+    dwStateAction: DWORD;
+    hWVTStateData: THandle;
+    pwszURLReference: PWideChar;
+    dwProvFlags: DWORD;
+    dwUIContext: DWORD;
+  end;
+  
   TSeleccionador = class(TRubberbandLayer)
     private
       FFillColor: TColor32;
@@ -26,7 +93,7 @@ type
       procedure GetResize(Sender: TObject;
         const OldLocation: TFloatRect;
         var NewLocation: TFloatRect;
-        DragState: TDragState;
+        DragState: TRBDragState;
         Shift: TShiftState);
     protected
       procedure Paint(Buffer: TBitmap32); override;
@@ -72,6 +139,19 @@ type
     ListBox4: TListBox;
     Button7: TButton;
     Button8: TButton;
+    PageControl1: TPageControl;
+    TabSheet3: TTabSheet;
+    TabSheet4: TTabSheet;
+    Splitter1: TSplitter;
+    lblOS: TLabel;
+    lblBIOS: TLabel;
+    lblTest: TLabel;
+    lblCurShell: TLabel;
+    lblBkpShell: TLabel;
+    lblBootres: TLabel;
+    lblBkpBootres: TLabel;
+    mmLog: TMemo;
+    cbVignette: TCheckBox;
 
     procedure ListBox1DblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -98,7 +178,11 @@ type
   private
     { Private declarations }
     procedure AppMsg(var msg: TMsg; var Handled: Boolean);
-
+    procedure LogMsg(const text: String);
+    function IsCodeSigned(const fn: string): Boolean;
+    function IsCompanySigningCertificate(const fn, cn: string): Boolean;
+    function GetCertCompanyName(const fn: string): string;
+    function StripAuthenticode(const fn: string): Boolean;
   public
     { Public declarations }
     Seleccionador: TSeleccionador;
@@ -156,7 +240,7 @@ const
           #13+
           #13+'Acknowledgements: (third party tools used)'+
           #13+'Signer written by Jeff Bush - Codeforlife.com'+
-          #13+'Delcert written by Depreed' +
+//          #13+'Delcert written by Depreed' +
           #13+'Sevenzip library by 7-zip.org © Igor Pavlov'+
           #13+'And Krutonium at Winmatrix'+
           #13+
@@ -197,12 +281,85 @@ function ConvertStringSidToSid(StringSid: PWideChar; var Sid: PSID): Boolean; st
 function ConvertStringSidToSidA(StringSid: PANsiChar; var Sid: PSID): Boolean; stdcall; external 'advapi32.dll' name
 'ConvertStringSidToSidA';
 
+function NtQuerySystemInformation(SystemInformationClass: LongInt; SystemInformation: Pointer; SystemInformationLength: ULONG; ReturnLength: PDWORD): Integer; stdcall;
+external 'ntdll.dll' name 'NtQuerySystemInformation';
+
+function GetFirmwareEnvironmentVariableA(lpName, lpGuid: LPCSTR; pBuffer: Pointer;
+  nSize: DWORD): DWORD; stdcall;
+external kernel32 name 'GetFirmwareEnvironmentVariableA';
+
+function ImageEnumerateCertificates(FileHandle: THandle; TypeFilter: WORD;
+  out CertificateCount: DWORD; Indicies: PDWORD; IndexCount: Integer): BOOL; stdcall;
+external 'Imagehlp.dll';
+
+function ImageGetCertificateHeader(FileHandle: THandle; CertificateIndex: Integer;
+  var CertificateHeader: TWinCertificate): BOOL; stdcall;
+external 'Imagehlp.dll';
+
+function ImageGetCertificateData(FileHandle: THandle; CertificateIndex: Integer;
+  Certificate: PWinCertificate; var RequiredLength: DWORD): BOOL; stdcall;
+external 'Imagehlp.dll'; 
+
+function ImageRemoveCertificate(FileHandle: THandle; Index: DWORD): BOOL; stdcall;
+external 'Imagehlp.dll';
+
+function CryptVerifyMessageSignature(const pVerifyPara: CRYPT_VERIFY_MESSAGE_PARA;
+  dwSignerIndex: DWORD; pbSignedBlob: PByte; cbSignedBlob: DWORD; pbDecoded: PByte;
+  pcbDecoded: PDWORD; ppSignerCert: PCCERT_CONTEXT): BOOL; stdcall;
+external 'Crypt32.dll';
+
+function CertGetNameStringA(pCertContext: PCCERT_CONTEXT; dwType: DWORD; dwFlags: DWORD; 
+  pvTypePara: Pointer; pszNameString: PAnsiChar; cchNameString: DWORD): DWORD; stdcall;
+external 'Crypt32.dll';
+
+function CertFreeCertificateContext(pCertContext: PCCERT_CONTEXT): BOOL; stdcall;
+external 'Crypt32.dll';
+
+function CertCreateCertificateContext(dwCertEncodingType: DWORD; pbCertEncoded: PByte;
+  cbCertEncoded: DWORD): PCCERT_CONTEXT; stdcall;
+external 'Crypt32.dll';
+
+function WinVerifyTrust(hwnd: HWND; const ActionID: TGUID; ActionData: Pointer): LongInt; stdcall;
+external wintrust;
 
 implementation
 
 {$R *.dfm}
 
-uses sevenzip, frmPreview_src;
+uses sevenzip, frmPreview_src, functions;
+
+function IsTestSigningModeOn: Boolean;
+var
+  rel: DWORD;
+  sci: TSystemCodeIntegrityInformation;
+  br: ULONG;
+begin
+  Result := False;
+  sci.Length := SizeOf(sci);
+  rel := NTQuerySystemInformation(SystemCodeIntegrityInformation, @sci, SizeOf(sci), @br);
+  //showmessage(inttohex(rel));
+  if Succeeded(rel) then
+  begin
+    //showmessage(inttohex(sci.CodeIntegrityOptions));
+    if sci.CodeIntegrityOptions and CODEINTEGRITY_OPTION_TESTSIGN = CODEINTEGRITY_OPTION_TESTSIGN then
+    begin
+      Result := True;
+    end;
+  end;
+end;
+
+function IsUEFI: Boolean;
+begin
+  try
+    GetFirmwareEnvironmentVariableA('', '{00000000-0000-0000-0000-000000000000}', nil, 0);
+    if (GetLastError = ERROR_INVALID_FUNCTION) then
+      Result := False // Legacy BIOS
+    else
+      Result := True;
+  except
+    //on E: Exception do
+  end;
+end;
 
 function GetWindowsDir: string;
 const
@@ -1203,7 +1360,7 @@ end;
 procedure TSeleccionador.GetResize(Sender: TObject;
   const OldLocation: TFloatRect;
   var NewLocation: TFloatRect;
-  DragState: TDragState;
+  DragState: TRBDragState;
   Shift: TShiftState);
 var
   frame: TRect;
@@ -1278,6 +1435,7 @@ var
   Arch : I7zInArchive;
   I: Integer;
   Dex: TMemoryStream;
+  Signature: TStringStream;
 begin
   if FileExists(OriginalDLL) then
   begin
@@ -1288,7 +1446,7 @@ begin
       for I := 0 to Arch.NumberOfItems -1 do
         if not Arch.ItemIsFolder[I] then
         begin
-          if I = 1 then
+//          if I = 1 then
           begin
             // Win8BootLogo.ListBox1.Items.Add(Arch.ItemPath[I]);
             //lets extract it
@@ -1297,7 +1455,17 @@ begin
               Arch.ExtractItem(I, Dex, False);
               //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
               Dex.Position := 0;
-              Dex.SaveToFile(WorkFolder+'\bootres.wim');
+              Signature := TStringStream.Create;
+              try
+                Signature.CopyFrom(Dex, 5);
+                if Signature.DataString = 'MSWIM' then
+                begin
+                  Dex.SaveToFile(WorkFolder+'\bootres.wim');
+                  Continue;
+                end;
+              finally
+                Signature.Free;
+              end;
             finally
               Dex.Free;
             end;
@@ -1333,7 +1501,8 @@ begin
         begin
           Win8BootLogo.ListBox1.Items.Add(Arch.ItemPath[I]);
           //lets load by default the 3rd picture in the viewer
-          if I = 2 then
+          //if I = 2 then
+          if Arch.ItemPath[I].Contains('winlogo3') then
           begin
             Dex := TMemoryStream.Create;
             try
@@ -1694,8 +1863,14 @@ begin
 end;
 
 function GetWindowsCurrentLocalizationFolder: string;
+var
+  lngId: WORD;
+  loc: string;
+  si:integer;
 begin
-  case GetUserDefaultLangID of
+//  lngId := GetUserDefaultLangID;
+  lngId := GetUserDefaultUILanguage; // it seems better than previous commented out method
+  case lngId of
     1025: Result := 'ar-SA';
     1026: Result := 'bg-BG';
     1028: Result := 'zh-TW';
@@ -1729,6 +1904,7 @@ begin
     1063: Result := 'lt-LT';
     2052: Result := 'zh-CN';
     2057: Result := 'en-GB';
+    2058: Result := 'es-MX';
     2070: Result := 'pt-PT';
     2074: Result := 'sr-Latn-CS';
     3076: Result := 'zh-HK';
@@ -1769,6 +1945,9 @@ begin
             trunc( ( Area.Right-ImgView321.GetBitmapRect.Left )*xr),
             trunc( ( Area.Bottom-ImgView321.GetBitmapRect.Top )*yr))
         );
+        // TODO; fix vignette effect same for all
+        if cbVignette.Checked then
+          Vignette(dest);
         //lets save it as p24 bit bitmap
         bmp := TBitmap.Create;
         try
@@ -1822,6 +2001,9 @@ begin
   begin
     frmPreview.Image321.Bitmap := ImgView321.Bitmap;
   end;
+
+  if cbVignette.Checked then
+      Vignette(frmPreview.Image321.Bitmap);
 
   frmPreview.ShowModal;
 end;
@@ -1927,12 +2109,13 @@ begin
   //now let's patch RCDATA 1 (1033);
 
   //lets remove the certificate
-  ShellExecute(Handle
-    , 'OPEN'
-    , PChar(ExtractFilePath(ParamStr(0))+'bin\delcert.exe')
-    , PChar(WorkFolder+'\bootres.dll')
-    , nil
-    , SW_HIDE);
+//  ShellExecute(Handle
+//    , 'OPEN'
+//    , PChar(ExtractFilePath(ParamStr(0))+'bin\delcert.exe')
+//    , PChar(WorkFolder+'\bootres.dll')
+//    , nil
+//    , SW_HIDE);
+  StripAuthenticode(WorkFolder + '\bootres.dll');
 
 
   //let's first make sure the language of the resource
@@ -1945,6 +2128,8 @@ begin
   if IsCheckSumValid(WorkFolder+'\bootres.dll', False) then
   ShowMessage('FIXED');*)
   //now lets sign it
+  if not FileExists(ExtractFilePath(ParamStr(0))+'bin\signer.exe') then
+    MessageDlg('Error, signer.exe not found in bin directory, please add it!', mtError, [mbOK], 0);
   ShellExecute(Handle
     , 'OPEN'
     , PChar(ExtractFilePath(ParamStr(0))+'bin\signer.exe')
@@ -2334,6 +2519,7 @@ var
 var
   hMenu : THandle;
 begin
+  LogMsg('App started.');
 //  ShowMessage(GetUserFromWindows);
   weare64bit := False;
 (*  if exebit = SCS_32BIT_BINARY then
@@ -2347,9 +2533,27 @@ begin
 
   if not CheckWin32Version(6,2) then
   begin
-    ShowMessage('This tool is only for Windows 8');
+    ShowMessage('This tool is only for Windows 8 or newer');
     Application.Terminate;
   end;
+  lblOS.Caption := 'System Version: ' + JclSysInfo.GetWindowsVersionString
+  + ' ' + JclSysInfo.GetWindowsEditionString;
+  if JclSysInfo.IsWindows64 then lblOS.Caption := lblOS.Caption + ' 64bit' else
+    lblOS.Caption := lblOS.Caption + ' 32bit';
+  LogMsg('OS version detected -> '+ lblOS.Caption);
+
+  if IsUEFI then
+    lblBIOS.Caption := 'BIOS boot mode: UEFI'
+  else
+    lblBIOS.Caption := 'BIOS boot mode: Legacy';
+  LogMsg('BIOS mode detected -> ' + lblBIOS.Caption);
+
+  if IsTestSigningModeOn then
+    lblTest.Caption := 'TestSigning: ON'
+  else
+    lblTest.Caption := 'TestSigning: OFF';
+  LogMsg('TestSigning detected -> ' + lblTest.Caption);
+
   //set work folder
   //use current if not in programfiles folder
 
@@ -2377,9 +2581,17 @@ begin
   end;
 
   if IsBackupThere then
-    OriginalDLL := GetWindowsDir+'bootres.bkp'
+  begin
+    OriginalDLL := GetWindowsDir+'bootres.bkp';
+    if IsCodeSigned(OriginalDLL) then
+      lblBkpBootres.Caption := 'Backup Bootres.dll: signed by ' + GetCertCompanyName(OriginalDLL);
+  end
   else
     OriginalDLL := GetWindowsDir+'Boot\Resources\bootres.dll';
+
+  if IsCodeSigned(GetWindowsDir+'Boot\Resources\bootres.dll') then
+    lblBootres.Caption := 'Current Bootres.dll: signed by ' + GetCertCompanyName(GetWindowsDir+'Boot\Resources\bootres.dll');
+    
 
 //  BootResDLL := ExtractFilePath(ParamStr(0))+'bootres.dll';
   BootResDLL := WorkFolder+'\bootres.wim';
@@ -2424,11 +2636,16 @@ begin
 
   if FileExists(GetWindowsDir + 'Boot\Resources\bootres.dll') then
   begin
+    var ca := 'none';
+    if IsCodeSigned(GetWindowsDir+'Boot\Resources\bootres.dll') then
+      ca := GetCertCompanyName(GetWindowsDir+'Boot\Resources\bootres.dll');
+      
     GetFileOwner(GetWindowsDir + 'Boot\Resources\bootres.dll',Domain, Username);
       Label1.Caption := 'File : '+GetWindowsDir+'Boot\Resources\bootres.dll'+
       #13'File Architecture : '+IntToStr(BootresVersion)+' bit'+
       #13'File owner : '+Username+
-      #13'File version : '+FileVersionGet(GetWindowsDir + 'Boot\Resources\bootres.dll');
+      #13'File version : '+FileVersionGet(GetWindowsDir + 'Boot\Resources\bootres.dll')+
+      #13'File Digital Signature : ' + ca;
   end;
 
   if IsBackupThere then
@@ -2482,6 +2699,160 @@ end;
 procedure TWin8BootLogo.FormDestroy(Sender: TObject);
 begin
   Back.Free;
+end;
+
+function TWin8BootLogo.GetCertCompanyName(const fn: string): string;
+var
+  hExe: HMODULE;
+  Cert: PWinCertificate;
+  CertContext: PCCERT_CONTEXT;
+  CertCount: DWORD;
+  CertName: AnsiString;
+  CertNameLen: DWORD;
+  VerifyParams: CRYPT_VERIFY_MESSAGE_PARA;
+begin
+  Result := '';
+  // Verify that the exe was signed by our private key
+  hExe := CreateFile(PChar(fn), GENERIC_READ, FILE_SHARE_READ,
+    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL or FILE_FLAG_RANDOM_ACCESS, 0);
+  if hExe = INVALID_HANDLE_VALUE then
+    Exit;
+  try
+    // There should only be one certificate associated with the exe
+    if (not ImageEnumerateCertificates(hExe, CERT_SECTION_TYPE_ANY, CertCount, nil, 0)) or
+      (CertCount <> 1) then
+      Exit;
+    // Read the certificate hader so we can get the size needed for the full cert
+    GetMem(Cert, SizeOf(TWinCertificate) + 3); // ImageGetCertificateHeader writes a DWORD at bCertificate for some reason
+    try
+      Cert.dwLength := 0;
+      Cert.wRevision := WIN_CERT_REVISION_1_0;
+      if not ImageGetCertificateHeader(hExe, 0, Cert^) then
+        Exit;
+      // Read the full certificate
+      ReallocMem(Cert, SizeOf(TWinCertificate) + Cert.dwLength);
+      if not ImageGetCertificateData(hExe, 0, Cert, Cert.dwLength) then
+        Exit;
+      // Get the certificate context. CryptVerifyMessageSignature has the
+      // side effect of creating a context for the signing certificate.
+      FillChar(VerifyParams, SizeOf(VerifyParams), 0);
+      VerifyParams.cbSize := SizeOf(VerifyParams);
+      VerifyParams.dwMsgAndCertEncodingType := X509_ASN_ENCODING or PKCS_7_ASN_ENCODING;
+      if not CryptVerifyMessageSignature(VerifyParams, 0, @Cert.bCertificate,
+        Cert.dwLength, nil, nil, @CertContext) then
+        Exit;
+      try
+        // Extract and compare the certificate's subject names. Don't
+        // compare the entire certificate or the public key as those will
+        // change when the certificate is renewed.
+        CertNameLen := CertGetNameStringA(CertContext,
+          CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nil, nil, 0);
+        SetLength(CertName, CertNameLen - 1);
+        CertGetNameStringA(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
+          nil, PAnsiChar(CertName), CertNameLen);
+        Result := CertName;
+        if CertName <> '' then
+          Exit;
+      finally
+        CertFreeCertificateContext(CertContext);
+      end;
+    finally
+      FreeMem(Cert);
+    end;
+  finally
+    CloseHandle(hExe);
+  end;
+end;
+
+function TWin8BootLogo.IsCodeSigned(const fn: string): Boolean;
+var
+  file_info: TWinTrustFileInfo;
+  trust_data: TWinTrustData;
+begin
+  // Verify that the exe is signed and the checksum matches
+  FillChar(file_info, SizeOf(file_info), 0);
+  file_info.cbStruct := SizeOf(file_info);
+  file_info.pcwszFilePath := PWideChar(WideString(fn));
+  FillChar(trust_data, SizeOf(trust_data),0);
+  trust_data.cbStruct := SizeOf(trust_data);
+  trust_data.dwUIChoice := WTD_UI_NONE;
+  trust_data.fdwRevocationChecks := WTD_REVOKE_NONE;
+  trust_data.dwUnionChoice := WTD_CHOICE_FILE;
+  trust_data.pFile := @file_info;
+  Result := WinVerifyTrust(INVALID_HANDLE_VALUE, WINTRUST_ACTION_GENERIC_VERIFY_V2,
+  @trust_data) = ERROR_SUCCESS;
+end;
+
+function TWin8BootLogo.IsCompanySigningCertificate(const fn,
+  cn: string): Boolean;
+var
+  hExe: HMODULE;
+  Cert: PWinCertificate;
+  CertContext: PCCERT_CONTEXT;
+  CertCount: DWORD;
+  CertName: AnsiString;
+  CertNameLen: DWORD;
+  VerifyParams: CRYPT_VERIFY_MESSAGE_PARA;
+begin
+  // Returns TRUE if the SubjectName on the certificate used to sign the exe is
+  // "Company Name". Should prevent a cracker from modifying the file and
+  // re-signing it with their own certificate.
+  //
+  // Microsoft has an example that does this using CryptQueryObject and
+  // CertFinCertificateInStore instead of CryptVerifyMessageSignature, but
+  // CryptQueryObject is NT-Only. Using CertCreateCertificateContext doesn't work
+  // either, though I don't know why.
+  Result := False;
+  // Verify that the exe was signed by our private key
+  hExe := CreateFile(PChar(fn), GENERIC_READ, FILE_SHARE_READ,
+    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL or FILE_FLAG_RANDOM_ACCESS, 0);
+  if hExe = INVALID_HANDLE_VALUE then
+    Exit;
+  try
+    // There should only be one certificate associated with the exe
+    if (not ImageEnumerateCertificates(hExe, CERT_SECTION_TYPE_ANY, CertCount, nil, 0)) or
+      (CertCount <> 1) then
+      Exit;
+    // Read the certificate header so we can get the size needed for the full cert
+    GetMem(Cert, SizeOf(TWinCertificate) + 3); // ImageGetCertificateHeader writes a DWORD at bCertificate for some reason
+    try
+      Cert.dwLength := 0;
+      Cert.wRevision := WIN_CERT_REVISION_1_0;
+      if not ImageGetCertificateHeader(hExe, 0, Cert^) then
+        Exit;
+      // Read the full certificate
+      ReallocMem(Cert, SizeOf(TWinCertificate) + Cert.dwLength);
+      if not ImageGetCertificateData(hExe, 0, Cert, Cert.dwLength) then
+        Exit;
+      // Get the certificate context. CryptVerifyMessageSignature has the
+      // side effect of creating a context for the signing certificate.
+      FillChar(VerifyParams, SizeOf(VerifyParams), 0);
+      VerifyParams.cbSize := SizeOf(VerifyParams);
+      VerifyParams.dwMsgAndCertEncodingType := X509_ASN_ENCODING or PKCS_7_ASN_ENCODING;
+      if not CryptVerifyMessageSignature(VerifyParams, 0, @Cert.bCertificate,
+        Cert.dwLength, nil, nil, @CertContext) then
+        Exit;
+      try
+        // Extract and compare the certificate's subject names. Don't
+        // compare the entire certificate or the public key as those will
+        // change when the certificate is renewed.
+        CertNameLen := CertGetNameStringA(CertContext,
+          CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nil, nil, 0);
+        SetLength(CertName, CertNameLen - 1);
+        CertGetNameStringA(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0,
+          nil, PAnsiChar(CertName), CertNameLen);
+        if CertName <> cn then
+          Exit;
+      finally
+        CertFreeCertificateContext(CertContext);
+      end;
+    finally
+      FreeMem(Cert);
+    end;
+  finally
+    CloseHandle(hExe);
+  end;
+  Result := True;
 end;
 
 procedure TWin8BootLogo.Label5Click(Sender: TObject);
@@ -2606,6 +2977,28 @@ begin
         end;
       end;
     end;
+  end;
+end;
+
+procedure TWin8BootLogo.LogMsg(const text: String);
+begin
+  mmLog.Lines.Add(text);
+  mmLog.Perform(EM_SCROLL, SB_LINEDOWN, 0);
+end;
+
+function TWin8BootLogo.StripAuthenticode(const fn: string): Boolean;
+var
+  hExe: HMODULE;
+begin
+  Result := False;
+  hExe := CreateFile(PChar(fn), GENERIC_READ, FILE_SHARE_READ,
+    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL or FILE_FLAG_RANDOM_ACCESS, 0);
+  if hExe = INVALID_HANDLE_VALUE then
+    Exit;
+  try
+    Result := ImageRemoveCertificate(hExe, 0);
+  finally
+    CloseHandle(hExe);
   end;
 end;
 

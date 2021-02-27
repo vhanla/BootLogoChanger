@@ -11,7 +11,8 @@ uses
   BootLogoChanger_src in 'BootLogoChanger_src.pas' {Win8BootLogo},
   Vcl.Themes,
   Vcl.Styles,
-  frmPreview_src in 'frmPreview_src.pas' {frmPreview};
+  frmPreview_src in 'frmPreview_src.pas' {frmPreview},
+  functions in 'functions.pas';
 
 {$R *.res}
 
