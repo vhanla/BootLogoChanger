@@ -68,14 +68,14 @@ object Win8BootLogo: TWin8BootLogo
     OverSize = 0
     TabOrder = 0
   end
-  object Button5: TButton
+  object btnLoadPic: TButton
     Left = 39
     Top = 366
     Width = 73
     Height = 25
     Caption = 'Load Picture'
     TabOrder = 1
-    OnClick = Button5Click
+    OnClick = btnLoadPicClick
   end
   object btnPreview: TButton
     Left = 174
@@ -100,14 +100,14 @@ object Win8BootLogo: TWin8BootLogo
     TabOrder = 3
     OnClick = btnReloadClick
   end
-  object Button1: TButton
+  object btnHelp: TButton
     Left = 8
     Top = 366
     Width = 25
     Height = 25
     Caption = '?'
     TabOrder = 4
-    OnClick = Button1Click
+    OnClick = btnHelpClick
   end
   object pages: TPageControl
     Left = 478
@@ -118,44 +118,44 @@ object Win8BootLogo: TWin8BootLogo
     TabOrder = 5
     object TabSheet1: TTabSheet
       Caption = 'Bitmaps'
-      object Label3: TLabel
+      object lblOriginalPics: TLabel
         Left = 2
         Top = 8
         Width = 226
         Height = 13
         Caption = 'Original pictures: (double click to see each one)'
       end
-      object Label4: TLabel
+      object lblEditedPictures: TLabel
         Left = 3
         Top = 116
         Width = 75
         Height = 13
         Caption = 'Edited pictures:'
       end
-      object Label1: TLabel
+      object lblBackupedFiles: TLabel
         Left = 0
         Top = 258
         Width = 105
         Height = 13
         Caption = 'Backup file not found!'
       end
-      object ListBox1: TListBox
+      object lstOriginalPics: TListBox
         Left = 29
         Top = 27
         Width = 196
         Height = 89
         ItemHeight = 13
         TabOrder = 0
-        OnDblClick = ListBox1DblClick
+        OnDblClick = lstOriginalPicsDblClick
       end
-      object ListBox2: TListBox
+      object lstEditedPics: TListBox
         Left = 29
         Top = 135
         Width = 196
         Height = 86
         ItemHeight = 13
         TabOrder = 1
-        OnDblClick = ListBox2DblClick
+        OnDblClick = lstEditedPicsDblClick
       end
       object btnCreatePictures: TButton
         Left = 3
@@ -211,7 +211,7 @@ object Win8BootLogo: TWin8BootLogo
         TabOrder = 5
         OnClick = btnBackupRestoreClick
       end
-      object Button8: TButton
+      object btnExit: TButton
         Left = 161
         Top = 327
         Width = 67
@@ -224,14 +224,14 @@ object Win8BootLogo: TWin8BootLogo
     object TabSheet2: TTabSheet
       Caption = 'Testmode'
       ImageIndex = 1
-      object Label7: TLabel
+      object lblTestSigning: TLabel
         Left = 3
         Top = 3
         Width = 87
         Height = 13
         Caption = 'Testsigning mode:'
       end
-      object Label8: TLabel
+      object lblTestSigningDescription: TLabel
         Left = 3
         Top = 50
         Width = 225
@@ -253,7 +253,7 @@ object Win8BootLogo: TWin8BootLogo
         TabOrder = 0
         OnClick = btnTestModeClick
       end
-      object Button2: TButton
+      object btnBkpShell32Mui: TButton
         Left = 3
         Top = 137
         Width = 143
@@ -261,9 +261,9 @@ object Win8BootLogo: TWin8BootLogo
         Caption = 'Backup shell32.dll.mui'
         ElevationRequired = True
         TabOrder = 1
-        OnClick = Button2Click
+        OnClick = btnBkpShell32MuiClick
       end
-      object Button3: TButton
+      object btnPatchShell32Mui: TButton
         Left = 152
         Top = 137
         Width = 76
@@ -271,9 +271,9 @@ object Win8BootLogo: TWin8BootLogo
         Caption = 'Patch'
         ElevationRequired = True
         TabOrder = 2
-        OnClick = Button3Click
+        OnClick = btnPatchShell32MuiClick
       end
-      object Button4: TButton
+      object btnBkpBasebrdmui: TButton
         Left = 3
         Top = 223
         Width = 143
@@ -281,9 +281,9 @@ object Win8BootLogo: TWin8BootLogo
         Caption = 'Backup basebrd.dll.mui'
         ElevationRequired = True
         TabOrder = 3
-        OnClick = Button4Click
+        OnClick = btnBkpBasebrdmuiClick
       end
-      object Button6: TButton
+      object btnPatchBasebrdMui: TButton
         Left = 152
         Top = 223
         Width = 76
@@ -291,9 +291,9 @@ object Win8BootLogo: TWin8BootLogo
         Caption = 'Patch'
         ElevationRequired = True
         TabOrder = 4
-        OnClick = Button6Click
+        OnClick = btnPatchBasebrdMuiClick
       end
-      object ListBox3: TListBox
+      object lstShell32Mui: TListBox
         Left = 3
         Top = 168
         Width = 225
@@ -301,7 +301,7 @@ object Win8BootLogo: TWin8BootLogo
         ItemHeight = 13
         TabOrder = 5
       end
-      object ListBox4: TListBox
+      object lstBasebrdMui: TListBox
         Left = 3
         Top = 248
         Width = 225
@@ -309,14 +309,14 @@ object Win8BootLogo: TWin8BootLogo
         ItemHeight = 13
         TabOrder = 6
       end
-      object Button7: TButton
+      object btnRestartExplorer: TButton
         Left = 3
         Top = 295
         Width = 225
         Height = 25
         Caption = 'Restart Explorer.exe'
         TabOrder = 7
-        OnClick = Button7Click
+        OnClick = btnRestartExplorerClick
       end
       object btnCancel: TButton
         Left = 161
@@ -382,7 +382,7 @@ object Win8BootLogo: TWin8BootLogo
         Caption = 'Current Bootres.dll:'
       end
       object lblBkpBootres: TLabel
-        Left = 354
+        Left = 322
         Top = 64
         Width = 92
         Height = 13

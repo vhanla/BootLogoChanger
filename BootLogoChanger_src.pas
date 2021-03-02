@@ -14,11 +14,10 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, GR32_Image, Vcl.ExtDlgs, ShellApi, AccCtrl, AclApi,
   DragDrop, DragDropContext, DragDropHandler, DropTarget, DragDropFile,
   DropHandler, DropComboTarget, GR32_Resamplers, gr32, GR32_Layers, gr32_polygons, shlobj,
-  Vcl.Buttons, imagehlp, Vcl.ExtCtrls, Vcl.ComCtrls, System.Types, JclSysInfo;
+  Vcl.Buttons, imagehlp, Vcl.ExtCtrls, Vcl.ComCtrls, System.Types, JclSysInfo,
+  JclCompression;
 
 const
-  SystemCodeIntegrityInformation = $67;
-  CODEINTEGRITY_OPTION_TESTSIGN = 2;
   {$EXTERNALSYM WIN_CERT_REVISION_1_0}
   WIN_CERT_REVISION_1_0 = $0100;
   CERT_SECTION_TYPE_ANY = $FF; // any certificate type
@@ -30,35 +29,8 @@ const
   WTD_CHOICE_FILE = 1;
   WTD_REVOKE_NONE = 0;
   WTD_UI_NONE = 2;
-  
+
 type
-  TSystemInformationClass = (
-    SystemBasicInformation = 0,
-    SystemPerformanceInformation = 2,
-    SystemTimeOfDayInformation = 3,
-    SystemProcessInformation = 5,
-    SystemProcessorPerformanceInformation = 8,
-    SystemInterruptInformation = 23,
-    SystemExceptionInformation = 33,
-    SystemRegistryQuotaInformation = 37,
-    SystemLookasideInformation = 45
-  );
-  TSystemCodeIntegrityInformation = record
-    Length: ULONG;
-    CodeIntegrityOptions: ULONG;
-  end;
-
-  PCCERT_CONTEXT = type Pointer;
-  HCRYPTPROV_LEGACY = type Pointer;
-  PFN_CRYPT_GET_SIGNER_CERTIFICATE = type Pointer;
-
-  CRYPT_VERIFY_MESSAGE_PARA = record
-    cbSize: DWORD;
-    dwMsgAndCertEncodingType: DWORD;
-    hCryptProv: HCRYPTPROV_LEGACY;
-    pfnGetSignerCertificate: PFN_CRYPT_GET_SIGNER_CERTIFICATE;
-    pvGetArg: Pointer;
-  end;
 
   PWinTrustFileInfo = ^TWinTrustFileInfo;
   TWinTrustFileInfo = record
@@ -83,7 +55,7 @@ type
     dwProvFlags: DWORD;
     dwUIContext: DWORD;
   end;
-  
+
   TSeleccionador = class(TRubberbandLayer)
     private
       FFillColor: TColor32;
@@ -104,20 +76,20 @@ type
 
 type
   TWin8BootLogo = class(TForm)
-    ListBox1: TListBox;
+    lstOriginalPics: TListBox;
     ImgView321: TImgView32;
     btnCancel: TButton;
     btnBackupRestore: TButton;
     btnApply: TButton;
-    Label1: TLabel;
-    Button5: TButton;
+    lblBackupedFiles: TLabel;
+    btnLoadPic: TButton;
     OpenPictureDialog1: TOpenPictureDialog;
     Label2: TLabel;
     btnPreview: TButton;
     DropComboTarget1: TDropComboTarget;
-    Label3: TLabel;
-    Label4: TLabel;
-    ListBox2: TListBox;
+    lblOriginalPics: TLabel;
+    lblEditedPictures: TLabel;
+    lstEditedPics: TListBox;
     btnCreatePictures: TButton;
     btnReload: TButton;
     BalloonHint1: TBalloonHint;
@@ -125,20 +97,20 @@ type
     btnTestMode: TButton;
     Label5: TLabel;
     Label6: TLabel;
-    Button1: TButton;
+    btnHelp: TButton;
     pages: TPageControl;
     TabSheet1: TTabSheet;
     TabSheet2: TTabSheet;
-    Label7: TLabel;
-    Label8: TLabel;
-    Button2: TButton;
-    Button3: TButton;
-    Button4: TButton;
-    Button6: TButton;
-    ListBox3: TListBox;
-    ListBox4: TListBox;
-    Button7: TButton;
-    Button8: TButton;
+    lblTestSigning: TLabel;
+    lblTestSigningDescription: TLabel;
+    btnBkpShell32Mui: TButton;
+    btnPatchShell32Mui: TButton;
+    btnBkpBasebrdmui: TButton;
+    btnPatchBasebrdMui: TButton;
+    lstShell32Mui: TListBox;
+    lstBasebrdMui: TListBox;
+    btnRestartExplorer: TButton;
+    btnExit: TButton;
     PageControl1: TPageControl;
     TabSheet3: TTabSheet;
     TabSheet4: TTabSheet;
@@ -153,10 +125,10 @@ type
     mmLog: TMemo;
     cbVignette: TCheckBox;
 
-    procedure ListBox1DblClick(Sender: TObject);
+    procedure lstOriginalPicsDblClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure btnCancelClick(Sender: TObject);
-    procedure Button5Click(Sender: TObject);
+    procedure btnLoadPicClick(Sender: TObject);
     procedure btnApplyClick(Sender: TObject);
     procedure btnBackupRestoreClick(Sender: TObject);
     procedure btnPreviewClick(Sender: TObject);
@@ -164,17 +136,17 @@ type
       APoint: TPoint; var Effect: Integer);
     procedure btnReloadClick(Sender: TObject);
     procedure btnCreatePicturesClick(Sender: TObject);
-    procedure ListBox2DblClick(Sender: TObject);
+    procedure lstEditedPicsDblClick(Sender: TObject);
     procedure btnRePackClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnTestModeClick(Sender: TObject);
     procedure Label5Click(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
-    procedure Button6Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
-    procedure Button7Click(Sender: TObject);
+    procedure btnHelpClick(Sender: TObject);
+    procedure btnPatchShell32MuiClick(Sender: TObject);
+    procedure btnPatchBasebrdMuiClick(Sender: TObject);
+    procedure btnBkpShell32MuiClick(Sender: TObject);
+    procedure btnBkpBasebrdmuiClick(Sender: TObject);
+    procedure btnRestartExplorerClick(Sender: TObject);
   private
     { Private declarations }
     procedure AppMsg(var msg: TMsg; var Handled: Boolean);
@@ -275,52 +247,7 @@ const
     FILE_EXECUTE or SYNCHRONIZE);
   FILE_ALL_ACCESS = STANDARD_RIGHTS_REQUIRED or SYNCHRONIZE or $1FF;
 
-function ConvertStringSidToSid(StringSid: PWideChar; var Sid: PSID): Boolean; stdcall; external 'advapi32.dll' name
-'ConvertStringSidToSidW';
 
-function ConvertStringSidToSidA(StringSid: PANsiChar; var Sid: PSID): Boolean; stdcall; external 'advapi32.dll' name
-'ConvertStringSidToSidA';
-
-function NtQuerySystemInformation(SystemInformationClass: LongInt; SystemInformation: Pointer; SystemInformationLength: ULONG; ReturnLength: PDWORD): Integer; stdcall;
-external 'ntdll.dll' name 'NtQuerySystemInformation';
-
-function GetFirmwareEnvironmentVariableA(lpName, lpGuid: LPCSTR; pBuffer: Pointer;
-  nSize: DWORD): DWORD; stdcall;
-external kernel32 name 'GetFirmwareEnvironmentVariableA';
-
-function ImageEnumerateCertificates(FileHandle: THandle; TypeFilter: WORD;
-  out CertificateCount: DWORD; Indicies: PDWORD; IndexCount: Integer): BOOL; stdcall;
-external 'Imagehlp.dll';
-
-function ImageGetCertificateHeader(FileHandle: THandle; CertificateIndex: Integer;
-  var CertificateHeader: TWinCertificate): BOOL; stdcall;
-external 'Imagehlp.dll';
-
-function ImageGetCertificateData(FileHandle: THandle; CertificateIndex: Integer;
-  Certificate: PWinCertificate; var RequiredLength: DWORD): BOOL; stdcall;
-external 'Imagehlp.dll'; 
-
-function ImageRemoveCertificate(FileHandle: THandle; Index: DWORD): BOOL; stdcall;
-external 'Imagehlp.dll';
-
-function CryptVerifyMessageSignature(const pVerifyPara: CRYPT_VERIFY_MESSAGE_PARA;
-  dwSignerIndex: DWORD; pbSignedBlob: PByte; cbSignedBlob: DWORD; pbDecoded: PByte;
-  pcbDecoded: PDWORD; ppSignerCert: PCCERT_CONTEXT): BOOL; stdcall;
-external 'Crypt32.dll';
-
-function CertGetNameStringA(pCertContext: PCCERT_CONTEXT; dwType: DWORD; dwFlags: DWORD; 
-  pvTypePara: Pointer; pszNameString: PAnsiChar; cchNameString: DWORD): DWORD; stdcall;
-external 'Crypt32.dll';
-
-function CertFreeCertificateContext(pCertContext: PCCERT_CONTEXT): BOOL; stdcall;
-external 'Crypt32.dll';
-
-function CertCreateCertificateContext(dwCertEncodingType: DWORD; pbCertEncoded: PByte;
-  cbCertEncoded: DWORD): PCCERT_CONTEXT; stdcall;
-external 'Crypt32.dll';
-
-function WinVerifyTrust(hwnd: HWND; const ActionID: TGUID; ActionData: Pointer): LongInt; stdcall;
-external wintrust;
 
 implementation
 
@@ -1400,59 +1327,62 @@ end;
 // the following procedure will only load the bitmaps from the original location file in memoryç
 // uncompress to stream the wim file
 // and again uncompress that win file to show the pictures
-procedure LoadBootRes;
-var
-  bootresfile: TFileStream;
-  reader: TBinaryReader;
-  value : Integer;
-
-  Arch : I7zInArchive;
-  I:integer;
-begin
-  if FileExists(BootResDLL) then
-  begin
-    bootresfile:= TFileStream.Create(BootResDLL, fmOpenRead or fmShareDenyWrite);
-    try
-      reader := TBinaryReader.Create(bootresfile);
-      try
-        value := reader.ReadInteger;
-      finally
-        reader.Free;
-      end;
-      //read on memory
-      Arch := CreateInArchive(CLSID_CFormatPe, '7zip.dll');
-
-    finally
-      bootresfile.Free;
-    end;
-  end;
-end;
+//procedure LoadBootRes;
+//var
+//  bootresfile: TFileStream;
+//  reader: TBinaryReader;
+//  value : Integer;
+//
+//  Arch : I7zInArchive;
+//  I:integer;
+//begin
+//  if FileExists(BootResDLL) then
+//  begin
+//    bootresfile:= TFileStream.Create(BootResDLL, fmOpenRead or fmShareDenyWrite);
+//    try
+//      reader := TBinaryReader.Create(bootresfile);
+//      try
+//        value := reader.ReadInteger;
+//      finally
+//        reader.Free;
+//      end;
+//      //read on memory
+//      Arch := CreateInArchive(CLSID_CFormatPe, '7zip.dll');
+//
+//    finally
+//      bootresfile.Free;
+//    end;
+//  end;
+//end;
 
 
 // it will extract the bootres.dll wim file into work folder
 procedure ExtractBootResWim;
 var
-  Arch : I7zInArchive;
+  Arch : TJclDecompressArchive;
   I: Integer;
   Dex: TMemoryStream;
   Signature: TStringStream;
 begin
   if FileExists(OriginalDLL) then
   begin
-    Win8BootLogo.ListBox1.Items.Clear;
+    Win8BootLogo.lstOriginalPics.Items.Clear;
     try
-      Arch := CreateInArchive(CLSID_CFormatPe, '7zip.dll');
-      Arch.OpenFile(OriginalDLL);
-      for I := 0 to Arch.NumberOfItems -1 do
-        if not Arch.ItemIsFolder[I] then
-        begin
-//          if I = 1 then
+      Arch := TJclPeDecompressArchive.Create(OriginalDLL, 0, False);
+      try
+        Arch.ListFiles;
+        for I := 0 to Arch.ItemCount - 1 do
+          if not Arch.Items[I].Directory then
           begin
-            // Win8BootLogo.ListBox1.Items.Add(Arch.ItemPath[I]);
             //lets extract it
             Dex := TMemoryStream.Create;
             try
-              Arch.ExtractItem(I, Dex, False);
+              Arch.Items[I].Stream := Dex;
+              Arch.Items[I].OwnsStream := False;
+              Arch.Items[I].Selected := True;
+              Arch.ExtractSelected();
+              //Unselect after to ignore in next loop
+              Arch.Items[I].Selected := False;
               //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
               Dex.Position := 0;
               Signature := TStringStream.Create;
@@ -1469,8 +1399,11 @@ begin
             finally
               Dex.Free;
             end;
+
           end;
-        end;
+      finally
+        FreeAndNil(Arch);
+      end;
     except
       on E:Exception do
       begin
@@ -1486,39 +1419,47 @@ end;
 //extract in listbox the current bitmaps
 procedure ExtractBitmapOnListBoxOnly;
 var
-  Arch : I7zInArchive;
+  Arch : TJclDecompressArchive;
   I: Integer;
   Dex: TMemoryStream;
 begin
   if FileExists(BootResDLL) then
   begin
-    Win8BootLogo.ListBox1.Items.Clear;
+    Win8BootLogo.lstOriginalPics.Items.Clear;
     try
-      Arch := CreateInArchive(CLSID_CFormatWim, '7zip.dll');
-      Arch.OpenFile(BootResDLL);
-      for I := 0 to Arch.NumberOfItems -1 do
-        if not Arch.ItemIsFolder[I] then
-        begin
-          Win8BootLogo.ListBox1.Items.Add(Arch.ItemPath[I]);
-          //lets load by default the 3rd picture in the viewer
-          //if I = 2 then
-          if Arch.ItemPath[I].Contains('winlogo3') then
+      Arch := TJclWimDecompressArchive.Create(BootResDLL, 0, False);
+      try
+        Arch.ListFiles;
+        for I := 0 to Arch.ItemCount - 1 do
+          if not Arch.Items[I].Directory then
           begin
-            Dex := TMemoryStream.Create;
-            try
-              Arch.ExtractItem(I, Dex, False);
-              //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
-              Dex.Position := 0;
-              Win8BootLogo.ImgView321.Bitmap.LoadFromStream(Dex);
-              //frmPreview.Image321.Bitmap := ImgView321.Bitmap;
-              //lets find out the dimensions
-              Win8BootLogo.Label2.Caption := 'Width : '+IntToStr(Win8BootLogo.ImgView321.Bitmap.BoundsRect.Width)+
-                                ' Height: '+IntToStr(Win8BootLogo.ImgView321.Bitmap.BoundsRect.Height);
-            finally
-              Dex.Free;
+            Win8BootLogo.lstOriginalPics.Items.Add(Arch.Items[I].PackedName);
+            //lets load by default the 3rd picture in the viewer
+            //if I = 2 then
+            if string(Arch.Items[I].PackedName).Contains('winlogo3.bmp') then
+            begin
+              Dex := TMemoryStream.Create;
+              try
+                Arch.Items[I].Stream := Dex;
+                Arch.Items[I].OwnsStream := False;
+                Arch.Items[I].Selected := True;
+                Arch.ExtractSelected();
+                Arch.Items[I].Selected := True;
+                //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
+                Dex.Position := 0;
+                Win8BootLogo.ImgView321.Bitmap.LoadFromStream(Dex);
+                //frmPreview.Image321.Bitmap := ImgView321.Bitmap;
+                //lets find out the dimensions
+                Win8BootLogo.Label2.Caption := 'Width : '+IntToStr(Win8BootLogo.ImgView321.Bitmap.BoundsRect.Width)+
+                                  ' Height: '+IntToStr(Win8BootLogo.ImgView321.Bitmap.BoundsRect.Height);
+              finally
+                Dex.Free;
+              end;
             end;
           end;
-        end;
+      finally
+        FreeAndNil(Arch);
+      end;
     except
       on E:Exception do
       begin
@@ -1536,46 +1477,16 @@ procedure LoadListofBMPs;
 var
   I: Integer;
 begin
-  Win8BootLogo.ListBox2.Items.Clear;
+  Win8BootLogo.lstEditedPics.Items.Clear;
   for I := 0 to 5 do
   begin
     if FileExists(WorkFolder+'\'+nombres[I]) then
     begin
-      Win8BootLogo.ListBox2.Items.Add(nombres[I]);
+      Win8BootLogo.lstEditedPics.Items.Add(nombres[I]);
     end;
   end;
 end;
 
-//http://stackoverflow.com/a/5722677
-function FileVersionGet( const sgFileName : string ) : string;
-var infoSize: DWORD;
-var verBuf:   pointer;
-var verSize:  UINT;
-var wnd:      UINT;
-var FixedFileInfo : PVSFixedFileInfo;
-begin
-  infoSize := GetFileVersioninfoSize(PChar(sgFileName), wnd);
-
-  result := '';
-
-  if infoSize <> 0 then
-  begin
-    GetMem(verBuf, infoSize);
-    try
-      if GetFileVersionInfo(PChar(sgFileName), wnd, infoSize, verBuf) then
-      begin
-        VerQueryValue(verBuf, '\', Pointer(FixedFileInfo), verSize);
-
-        result := IntToStr(FixedFileInfo.dwFileVersionMS div $10000) + '.' +
-                  IntToStr(FixedFileInfo.dwFileVersionMS and $0FFFF) + '.' +
-                  IntToStr(FixedFileInfo.dwFileVersionLS div $10000) + '.' +
-                  IntToStr(FixedFileInfo.dwFileVersionLS and $0FFFF);
-      end;
-    finally
-      FreeMem(verBuf);
-    end;
-  end;
-end;
 
 {
 Usage:
@@ -2010,7 +1921,9 @@ end;
 
 procedure TWin8BootLogo.btnRePackClick(Sender: TObject);
 var
-  Arch : I7zOutArchive;
+  Arch: TJclCompressArchive;
+  ArchClass: TJclCompressArchiveClass;
+  fn: string;
   i: Integer;
 begin
   //let's first create a new file that will contain the new wim bmp resources
@@ -2048,11 +1961,12 @@ begin
   end;
    *)
   DimBackground(Self);
+  fn := WorkFolder + '\bootres0.wim';
   // * TEMPORARY METHOD
-  if FileExists(WorkFolder+'\bootres0.wim') then
-    if not DeleteFile(WorkFolder+'\bootres0.wim') then
+  if FileExists(fn) then
+    if not DeleteFile(fn) then
       raise Exception.Create('Couldn''t write the new bitmaps into bootres0.wim');
-    if not CopyFile(PChar(WorkFolder+'\bootres.wim'),PChar(WorkFolder+'\bootres0.wim'),False) then
+    if not CopyFile(PChar(WorkFolder + '\bootres.wim'),PChar(fn),False) then
       raise Exception.Create('Couldn''t create bootres0.wim to work with');
 
   if FileExists(WorkFolder+'\'+nombres[0])
@@ -2072,6 +1986,29 @@ begin
     Exit;
   end;
 
+//// update edited pictures in bootres0.wim
+////  ArchClass := GetArchiveFormats.FindUpdateFormat(fn);
+////  if ArchClass <> nil then
+//  begin
+//  //  Arch := ArchClass.Create(fn, 0, False);
+//    Arch := TJcl7zCompressArchive(fn);
+//
+//    if FileExists(fn) then
+//      (Arch as TJclWimCompressArchive).ListFiles; // without this call deletes all previous files in the archive
+//
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[0], WorkFolder+'\'+nombres[0]);
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[1], WorkFolder+'\'+nombres[1]);
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[2], WorkFolder+'\'+nombres[2]);
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[3], WorkFolder+'\'+nombres[3]);
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[4], WorkFolder+'\'+nombres[4]);
+//    (Arch as TJcl7zUpdateArchive).AddFile(nombres[5], WorkFolder+'\'+nombres[5]);
+//
+//    try
+//      (Arch as TJcl7zUpdateArchive).Compress;
+//    finally
+//      FreeAndNil(Arch);
+//    end;
+//  end;
 
   ShellExecute(Handle
     , 'OPEN'
@@ -2162,15 +2099,15 @@ begin
   end;
 end;
 
-procedure TWin8BootLogo.Button1Click(Sender: TObject);
+procedure TWin8BootLogo.btnHelpClick(Sender: TObject);
 begin
       MessageDlg(Help,mtInformation,[mbOK],0);
 end;
 
-procedure TWin8BootLogo.Button2Click(Sender: TObject);
+procedure TWin8BootLogo.btnBkpShell32MuiClick(Sender: TObject);
 begin
   // if there is no backup and caption says to backup then lets backup
-  if not IsShell32BackupThere and (Button2.Caption = 'Backup shell32.dll.mui') then
+  if not IsShell32BackupThere and (btnBkpShell32Mui.Caption = 'Backup shell32.dll.mui') then
   begin
     ShellExecute(handle, 'RunAs', 'cmd', pchar('/t:0A /c '
             +'echo Windows 8 Boot Logo Changer by vhanla&&'
@@ -2178,7 +2115,7 @@ begin
             +'copy "'+GetWindowsDir+'System32\'+GetWindowsCurrentLocalizationFolder+'\shell32.dll.mui" "'+GetWindowsDir+'shell32.dll.mui.bkp"&&echo Backup done!&&pause'),nil,sw_show);
     IsShell32BackupThere;
   end
-  else if IsShell32BackupThere and (Button2.Caption = 'Restore shell32.dll.mui') then
+  else if IsShell32BackupThere and (btnBkpShell32Mui.Caption = 'Restore shell32.dll.mui') then
   begin
     //it only matters to rename it back to .mui the .bkp file, patched can't be deleted for some unknown reason
     if FileExists(GetWindowsDir+'System32\'+GetWindowsCurrentLocalizationFolder+'\shell32.dll.bkp') then
@@ -2300,34 +2237,34 @@ var
   res : HRSRC;
 begin
   //loadstring from system32.dll.mui
-  Win8BootLogo.ListBox3.Items.Clear;
+  Win8BootLogo.lstShell32Mui.Items.Clear;
   hmui := LoadLibrary(PChar(GetWindowsDir+'System32\'+GetWindowsCurrentLocalizationFolder+'\shell32.dll.mui'));
   try
     res := LoadString(hmui, 33088, buff, sizeof(buff));
-    Win8BootLogo.ListBox3.Items.Add(buff);
+    Win8BootLogo.lstShell32Mui.Items.Add(buff);
     res := LoadString(hmui, 33108, buff, sizeof(buff));
-    Win8BootLogo.ListBox3.Items.Add(buff);
+    Win8BootLogo.lstShell32Mui.Items.Add(buff);
     res := LoadString(hmui, 33109, buff, sizeof(buff));
-    Win8BootLogo.ListBox3.Items.Add(buff);
+    Win8BootLogo.lstShell32Mui.Items.Add(buff);
     res := LoadString(hmui, 33110, buff, sizeof(buff));
-    Win8BootLogo.ListBox3.Items.Add(buff);
+    Win8BootLogo.lstShell32Mui.Items.Add(buff);
   finally
     FreeLibrary(hmui);
   end;
   //loadstring from basbrd.dll.mui
-  Win8BootLogo.ListBox4.Items.Clear;
+  Win8BootLogo.lstBasebrdMui.Items.Clear;
   hmui := LoadLibrary(PChar(GetWindowsDir+'Branding\Basebrd\'+GetWindowsCurrentLocalizationFolder+'\basebrd.dll.mui'));
   try
     res := LoadString(hmui, 12, buff, sizeof(buff));
-    Win8BootLogo.ListBox4.Items.Add(buff);
+    Win8BootLogo.lstBasebrdMui.Items.Add(buff);
     res := LoadString(hmui, 13, buff, sizeof(buff));
-    Win8BootLogo.ListBox4.Items.Add(buff);
+    Win8BootLogo.lstBasebrdMui.Items.Add(buff);
   finally
     FreeLibrary(hmui);
   end;
 end;
 
-procedure TWin8BootLogo.Button3Click(Sender: TObject);
+procedure TWin8BootLogo.btnPatchShell32MuiClick(Sender: TObject);
 var
   shell32muifile: string; //workfolder editable file
 begin
@@ -2403,10 +2340,10 @@ begin
     MessageDlg('You should make a backup of shell32.dll.mui first!',mtError,[mbOK],0);
 end;
 
-procedure TWin8BootLogo.Button4Click(Sender: TObject);
+procedure TWin8BootLogo.btnBkpBasebrdmuiClick(Sender: TObject);
 begin
   // if there is no backup and caption says to backup then lets backup
-  if not IsBasebrdBackupThere and (Button4.Caption = 'Backup basebrd.dll.mui') then
+  if not IsBasebrdBackupThere and (btnBkpBasebrdmui.Caption = 'Backup basebrd.dll.mui') then
   begin
     ShellExecute(handle, 'RunAs', 'cmd', pchar('/t:0A /c '
             +'echo Windows 8 Boot Logo Changer by vhanla&&'
@@ -2414,7 +2351,7 @@ begin
             +'copy "'+GetWindowsDir+'Branding\Basebrd\'+GetWindowsCurrentLocalizationFolder+'\basebrd.dll.mui" "'+GetWindowsDir+'basebrd.dll.mui.bkp"&&echo Backup done!&&pause'),nil,sw_show);
     IsBasebrdBackupThere;
   end
-  else if IsBasebrdBackupThere and (Button4.Caption = 'Restore basebrd.dll.mui') then
+  else if IsBasebrdBackupThere and (btnBkpBasebrdmui.Caption = 'Restore basebrd.dll.mui') then
   begin
     //let's change file permissions and replace after that restore file permission
     ShellExecute(Handle, 'RunAs', 'cmd', pchar('/t:0A /c '
@@ -2431,7 +2368,7 @@ begin
   end;
 end;
 
-procedure TWin8BootLogo.Button5Click(Sender: TObject);
+procedure TWin8BootLogo.btnLoadPicClick(Sender: TObject);
 begin
   if OpenPictureDialog1.Execute then
   begin
@@ -2444,7 +2381,7 @@ begin
 end;
 
 
-procedure TWin8BootLogo.Button6Click(Sender: TObject);
+procedure TWin8BootLogo.btnPatchBasebrdMuiClick(Sender: TObject);
 var
   basebrdmuifile : string;
 begin
@@ -2476,7 +2413,7 @@ begin
 
 end;
 
-procedure TWin8BootLogo.Button7Click(Sender: TObject);
+procedure TWin8BootLogo.btnRestartExplorerClick(Sender: TObject);
 begin
   if MessageDlg('This will close all explorer instances and after that will restart it. Continue?',mtInformation,mbYesNo,0)=mrYes then
   begin
@@ -2584,7 +2521,8 @@ begin
   begin
     OriginalDLL := GetWindowsDir+'bootres.bkp';
     if IsCodeSigned(OriginalDLL) then
-      lblBkpBootres.Caption := 'Backup Bootres.dll: signed by ' + GetCertCompanyName(OriginalDLL);
+      lblBkpBootres.Caption := 'Backup Bootres.dll: signed by ' + GetCertCompanyName(OriginalDLL)
+      +' File Version: ' + FileVersionGet(OriginalDLL);
   end
   else
     OriginalDLL := GetWindowsDir+'Boot\Resources\bootres.dll';
@@ -2641,7 +2579,7 @@ begin
       ca := GetCertCompanyName(GetWindowsDir+'Boot\Resources\bootres.dll');
       
     GetFileOwner(GetWindowsDir + 'Boot\Resources\bootres.dll',Domain, Username);
-      Label1.Caption := 'File : '+GetWindowsDir+'Boot\Resources\bootres.dll'+
+      lblBackupedFiles.Caption := 'File : '+GetWindowsDir+'Boot\Resources\bootres.dll'+
       #13'File Architecture : '+IntToStr(BootresVersion)+' bit'+
       #13'File owner : '+Username+
       #13'File version : '+FileVersionGet(GetWindowsDir + 'Boot\Resources\bootres.dll')+
@@ -2654,14 +2592,14 @@ begin
     btnBackupRestore.Caption := '&Backup';
 
   if IsShell32BackupThere then
-    Button2.Caption := 'Restore shell32.dll.mui'
+    btnBkpShell32Mui.Caption := 'Restore shell32.dll.mui'
   else
-    Button2.Caption := 'Backup shell32.dll.mui';
+    btnBkpShell32Mui.Caption := 'Backup shell32.dll.mui';
 
   if IsBasebrdBackupThere then
-    Button4.Caption := 'Restore basebrd.dll.mui'
+    btnBkpBasebrdmui.Caption := 'Restore basebrd.dll.mui'
   else
-    Button4.Caption := 'Backup basebrd.dll.mui';
+    btnBkpBasebrdmui.Caption := 'Backup basebrd.dll.mui';
 
    DropComboTarget1.Formats := [mfFile];
 
@@ -2860,17 +2798,17 @@ begin
   ShellExecute(Handle, 'OPEN', PChar('http://codigobit.net'),nil,nil,SW_SHOWNORMAL);
 end;
 
-procedure TWin8BootLogo.ListBox1DblClick(Sender: TObject);
+procedure TWin8BootLogo.lstOriginalPicsDblClick(Sender: TObject);
 const
   BytesToCopy = 90113;
 var
-  Arch : I7zInArchive;
+  Arch : TJclDecompressArchive;
   I :Integer;
   Dex: TMemoryStream;
   bmp : TBitmap;
   bitdepth: string;
 begin
-  with ListBox1 do
+  with lstOriginalPics do
   begin
     if (ItemIndex >= 0) and (Items.Count > ItemIndex) then
     begin
@@ -2879,53 +2817,61 @@ begin
       if FileExists(BootResDLL) then
       begin
         try
-          Arch := CreateInArchive(CLSID_CFormatWim, '7zip.dll');
-          Arch.OpenFile(BootResDLL);
-          for I := 0 to Arch.NumberOfItems -1 do
-          begin
-            if not Arch.ItemIsFolder[I] then
+          Arch := TJclWimDecompressArchive.Create(BootResDLL, 0, False);
+          try
+            Arch.ListFiles;
+            for I := 0 to Arch.ItemCount - 1 do
             begin
-              if Arch.ItemPath[I] = Items[ItemIndex] then
+              if not Arch.Items[I].Directory then
               begin
-                Dex := TMemoryStream.Create;
-                try
-                  Arch.ExtractItem(I, Dex, False);
-                  //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
-                  Dex.Position := 0;
-                  ImgView321.Bitmap.LoadFromStream(Dex);
-
-                  //disable seleccionador visibility
-                  Seleccionador.Visible := False;
-                  btnCreatePictures.Enabled := False;
-                  //frmPreview.Image321.Bitmap := ImgView321.Bitmap;
-                  //lets find out the dimensions
-                  bmp := TBitmap.Create;
+                if Arch.Items[I].PackedName = Items[ItemIndex] then
+                begin
+                  Dex := TMemoryStream.Create;
                   try
+                    Arch.Items[I].Stream := Dex;
+                    Arch.Items[I].OwnsStream := False;
+                    Arch.Items[I].Selected := True;
+                    Arch.ExtractSelected();
+                    Arch.Items[I].Selected := True;
+                    //Dex.SaveToFile(ExtractFilePath(ParamStr(0))+'bitmaps.wim');
                     Dex.Position := 0;
-                    bmp.LoadFromStream(Dex);
-                    case bmp.PixelFormat of
-                      pfDevice: bitdepth := 'Device';
-                      pf1bit: bitdepth := '1bit';
-                      pf4bit: bitdepth := '4bit';
-                      pf8bit: bitdepth := '8bit';
-                      pf15bit: bitdepth := '15bit';
-                      pf16bit: bitdepth := '16bit';
-                      pf24bit: bitdepth := '24bit';
-                      pf32bit: bitdepth := '32bit';
-                      pfCustom: bitdepth := 'Custom';
-                    end;
+                    ImgView321.Bitmap.LoadFromStream(Dex);
 
-                  Label2.Caption := 'Width : '+IntToStr(ImgView321.Bitmap.BoundsRect.Width)+
-                                    ' Height: '+IntToStr(ImgView321.Bitmap.BoundsRect.Height)+
-                                    ' Bit: '+bitdepth;
+                    //disable seleccionador visibility
+                    Seleccionador.Visible := False;
+                    btnCreatePictures.Enabled := False;
+                    //frmPreview.Image321.Bitmap := ImgView321.Bitmap;
+                    //lets find out the dimensions
+                    bmp := TBitmap.Create;
+                    try
+                      Dex.Position := 0;
+                      bmp.LoadFromStream(Dex);
+                      case bmp.PixelFormat of
+                        pfDevice: bitdepth := 'Device';
+                        pf1bit: bitdepth := '1bit';
+                        pf4bit: bitdepth := '4bit';
+                        pf8bit: bitdepth := '8bit';
+                        pf15bit: bitdepth := '15bit';
+                        pf16bit: bitdepth := '16bit';
+                        pf24bit: bitdepth := '24bit';
+                        pf32bit: bitdepth := '32bit';
+                        pfCustom: bitdepth := 'Custom';
+                      end;
+
+                    Label2.Caption := 'Width : '+IntToStr(ImgView321.Bitmap.BoundsRect.Width)+
+                                      ' Height: '+IntToStr(ImgView321.Bitmap.BoundsRect.Height)+
+                                      ' Bit: '+bitdepth;
+                    finally
+                      bmp.Free;
+                    end;
                   finally
-                    bmp.Free;
+                    Dex.Free;
                   end;
-                finally
-                  Dex.Free;
                 end;
               end;
             end;
+          finally
+            FreeAndNil(Arch);
           end;
         except
           on e:Exception do
@@ -2938,13 +2884,13 @@ begin
   end;
 end;
 
-procedure TWin8BootLogo.ListBox2DblClick(Sender: TObject);
+procedure TWin8BootLogo.lstEditedPicsDblClick(Sender: TObject);
 var
   I :Integer;
   bmp : TBitmap;
   bitdepth: string;
 begin
-  with ListBox2 do
+  with lstEditedPics do
   begin
     if (ItemIndex >= 0) and (Items.Count > ItemIndex) then
     begin
