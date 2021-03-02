@@ -212,8 +212,6 @@ const
           #13+
           #13+'Acknowledgements: (third party tools used)'+
           #13+'Signer written by Jeff Bush - Codeforlife.com'+
-//          #13+'Delcert written by Depreed' +
-          #13+'Sevenzip library by 7-zip.org © Igor Pavlov'+
           #13+'And Krutonium at Winmatrix'+
           #13+
           #13'This application should only be distributed at codigobit.net';
@@ -253,7 +251,7 @@ implementation
 
 {$R *.dfm}
 
-uses sevenzip, frmPreview_src, functions;
+uses frmPreview_src, functions;
 
 function IsTestSigningModeOn: Boolean;
 var
